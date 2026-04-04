@@ -34,7 +34,7 @@ from modules.fglobal_mlp import FGlobal
 
 from server.CCTV_cosine_env import CCTVCosineEnv
 from server.data_loader import (
-    get_scenario,
+    get_random_variant,
     get_segment_by_id,
     scenario_to_hr_tensor,
     scenario_to_lr_tensor,
@@ -109,12 +109,14 @@ _episode: dict = {
     "task_id": None,
     "scenario": None,
     "env": None,
-    "current_state": None,   # (1, N, 128) tensor
-    "visited_ids": [],        # list of segment ID strings
-    "flagged_ids": [],        # list of flagged segment ID strings
+    "current_state": None,
+    "visited_ids": [],
+    "flagged_ids": [],
     "budget_used": 0,
     "budget_total": 0,
     "ground_truth_frame": None,
+    "is_clean": False,
+    "variant_id": None,
     "done": False,
     "steps_taken": 0,
     "final_reward": None,
@@ -241,9 +243,10 @@ def reset(task_id: int = Query(default=1, ge=1, le=3, description="Task ID (1=Ro
     - Initialises CCTVCosineEnv with lr_features + hr_features
     - Returns initial Observation (all segments at low-res, none expanded)
     """
-    scenario = get_scenario(task_id)
-    lr_tensor = scenario_to_lr_tensor(scenario, device=DEVICE)   # (1, N, 128)
-    hr_tensor = scenario_to_hr_tensor(scenario, device=DEVICE)   # (N, 128)
+    # Randomly select a variant - different every episode
+    scenario = get_random_variant(task_id)
+    lr_tensor = scenario_to_lr_tensor(scenario, device=DEVICE)
+    hr_tensor = scenario_to_hr_tensor(scenario, device=DEVICE)
     hints = get_all_partial_hints(scenario)
 
     env = CCTVCosineEnv(
@@ -266,6 +269,8 @@ def reset(task_id: int = Query(default=1, ge=1, le=3, description="Task ID (1=Ro
         "budget_used": 0,
         "budget_total": scenario["budget"],
         "ground_truth_frame": scenario["ground_truth_frame"],
+        "is_clean": scenario["is_clean"],
+        "variant_id": scenario["variant_id"],
         "done": False,
         "steps_taken": 0,
         "final_reward": None,
@@ -348,12 +353,23 @@ def step(action: Action):
 
     # ------------------------------------------------------------------
     elif action_type == "submit_frame":
-        reward = compute_reward(
-            submitted_frame=frame_num,
-            ground_truth_frame=_episode["ground_truth_frame"],
-            budget_used=_episode["budget_used"],
-            budget_total=_episode["budget_total"],
-        )
+        if _episode["is_clean"]:
+            # Agent submitted a frame but this is a clean video — wrong
+            reward = Reward(
+                score=0.0,
+                submitted_frame=frame_num,
+                ground_truth_frame=None,
+                frame_distance=None,
+                efficiency_bonus=0.0,
+                explanation="Agent submitted a frame but this video has no crime. Score: 0.0.",
+            )
+        else:
+            reward = compute_reward(
+                submitted_frame=frame_num,
+                ground_truth_frame=_episode["ground_truth_frame"],
+                budget_used=_episode["budget_used"],
+                budget_total=_episode["budget_total"],
+            )
         _episode["done"] = True
         _episode["final_reward"] = reward
         _episode["steps_taken"] += 1
@@ -366,7 +382,7 @@ def step(action: Action):
         reward = compute_no_crime_reward(
             budget_used=_episode["budget_used"],
             budget_total=_episode["budget_total"],
-            crime_actually_present=True,  # all 3 tasks have crimes
+            crime_actually_present=not _episode["is_clean"],
         )
         _episode["done"] = True
         _episode["final_reward"] = reward

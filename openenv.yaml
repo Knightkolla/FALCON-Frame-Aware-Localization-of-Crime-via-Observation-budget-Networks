@@ -1,0 +1,97 @@
+name: falcon-cctv-crime-localization
+version: "1.0"
+description: >
+  FALCON (Frame-Aware Localization of Crime via Observation-budget Networks).
+  An OpenEnv environment for intelligent CCTV crime frame localization.
+  Uses
+  budget-constrained sequential sampling principle applied to temporal video segments.
+
+author: Dhavala Kartikeya Somayaji
+hackathon: Meta PyTorch OpenEnv Hackathon — Round 1
+organizers: Scaler School of Technology x Hugging Face
+
+tags:
+  - openenv
+  - surveillance
+  - crime-detection
+  - reinforcement-learning
+  - cctv
+  - temporal-sampling
+  - observation-budget
+
+tasks:
+  - id: 1
+    name: robbery
+    difficulty: easy
+    description: "Robbery in parking lot. High motion + brightness spike marks crime. Budget: 40/200 segments."
+    ground_truth_frame: 1350
+    total_segments: 200
+    budget: 40
+
+  - id: 2
+    name: shoplifting
+    difficulty: medium
+    description: "Shoplifter conceals items slowly. Low motion is the signal; busy checkout is red herring. Budget: 100/500 segments."
+    ground_truth_frame: 6840
+    total_segments: 500
+    budget: 100
+
+  - id: 3
+    name: fighting
+    difficulty: hard
+    description: "Bar fight with 3-phase causal chain (argument → shoving → fight). Motion peaks AFTER crime starts. Budget: 135/900 segments."
+    ground_truth_frame: 10620
+    total_segments: 900
+    budget: 135
+
+action_space:
+  type: text
+  description: "Natural language action strings: 'expand segment_N', 'flag segment_N', 'submit_frame N', 'submit_no_crime'"
+
+observation_space:
+  type: structured_json
+  description: "JSON observation with N temporal segments, each having low-res features and optional expanded detail"
+  features:
+    - motion_score: "float [0, 1]"
+    - brightness_change: "float [0, 1]"
+    - person_count: "int >= 0"
+    - lr_feature_vector: "list[float] length 128"
+    - person_trajectories: "string (expanded only)"
+    - partial_reward_hint: "float [0, 1] (expanded only)"
+
+reward_range: [0.0, 1.0]
+reward_description: >
+  Deterministic frame proximity score:
+  1.00 = exact frame | 0.90 = within 1s | 0.70 = within 3s |
+  0.40 = within 10s | 0.10 = within 30s | 0.00 = beyond 30s.
+  Efficiency bonus of up to +0.10 for using fewer budget units.
+
+endpoints:
+  reset: "POST /reset?task_id={1,2,3}"
+  step: "POST /step"
+  state: "GET /state"
+  health: "GET /health"
+
+runtime:
+  max_inference_minutes: 5
+  memory_gb: 4
+  gpu_required: false
+  vcpu: 2
+
+dataset:
+  name: UCF-Crime (synthetic features)
+  description: >
+    Feature vectors are synthetically generated to match the structure of
+    UCF-Crime dataset (1,900 videos, 13 crime categories, frame-level annotations).
+    No real video files shipped — environment is pure JSON.
+  citation: >
+    Sultani, W., Chen, C., & Shah, M. (2018). Real-world anomaly detection
+    in surveillance videos. CVPR 2018.
+
+architecture:
+  description: >
+    Budget-constrained sequential sampling with deep RL.
+    Spatial patches → Temporal segments.
+    Low-res scan → 1fps thumbnail scan.
+    TSU cosine update → temporal TSU + adjacent segment update.
+    Budget: 20% of segments (FALCON-0.2 setting).

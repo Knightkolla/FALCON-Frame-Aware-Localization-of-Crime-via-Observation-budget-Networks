@@ -1,5 +1,5 @@
 ---
-title: FALCON - Frame-Aware Localization of Crime via Observation-budget Networks
+title: FALCON - CCTV Crime Localization Environment
 colorFrom: indigo
 colorTo: purple
 sdk: docker
@@ -13,7 +13,7 @@ tags:
   - temporal-sampling
   - pytorch
 license: mit
-short_description: "OpenEnv: CCTV crime frame localization with 20% observation budget"
+short_description: "CCTV crime frame localization under 20% budget"
 ---
 
 # FALCON - Frame-Aware Localization of Crime via Observation-budget Networks

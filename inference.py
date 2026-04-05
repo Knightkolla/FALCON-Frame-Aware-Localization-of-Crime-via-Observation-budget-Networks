@@ -65,47 +65,60 @@ def api_step(action_str: str) -> dict:
 # ---------------------------------------------------------------------------
 # Heuristic fallback
 # ---------------------------------------------------------------------------
-def heuristic_decide(obs: dict) -> str:
-    expanded_segments = [s for s in obs["segments"] if s["is_expanded"] and s.get("expanded")]
-    
-    # Check if we have strong signal to submit
-    if expanded_segments:
-        best = max(expanded_segments, key=lambda s: s["expanded"]["partial_reward_hint"])
-        if best["expanded"]["partial_reward_hint"] > 0.85:
-            # Random offset within 30fps = 15
-            frame = best["start_frame"] + 15
-            return f"submit_frame {frame}"
-            
-    # Budget check
-    remaining = obs["budget_remaining"]
-    if remaining <= 1:
-        if expanded_segments:
-            best = max(expanded_segments, key=lambda s: s["expanded"]["partial_reward_hint"])
-            return f"submit_frame {best['start_frame'] + 15}"
+# ---------------------------------------------------------------------------
+# LLM Logic
+# ---------------------------------------------------------------------------
+SYSTEM_PROMPT = """
+You are an expert CCTV analyst investigating an incident.
+You must find the EXACT FRAME a crime starts using a limited observation budget.
+You will be provided with N segments (each 1 second long). 
+Your initial observation shows only low-resolution info (motion_score, person_count).
+
+Choose one of these precise actions:
+- "expand segment_X": reveals high-res trajectory and a partial_reward_hint >0 if close to crime. Costs budget.
+- "submit_frame X": if you are highly confident, guess the exact frame timestamp!
+- "submit_no_crime": if you are 100% sure the video contains no crime.
+
+Reply with EXACTLY ONE ACTION on a single line. No quotes, no markdown, no reasoning.
+"""
+
+def get_llm_action(obs: dict, history: list) -> str:
+    # Summarize state for LLM
+    prompt = f"Crime type: {obs['crime_type']} ({obs['difficulty']}). Budget left: {obs['budget_remaining']} / {obs['budget_total']}."
+    summary = []
+    for s in obs["segments"]:
+        if s["is_expanded"]:
+            summary.append(f"[{s['id']}] Frame {s['start_frame']} - HR: {s['expanded']['partial_reward_hint']:.2f}")
         else:
-            return "submit_no_crime"
-
-    # Not expanded yet
-    unexpanded = [s for s in obs["segments"] if not s["is_expanded"]]
-    if not unexpanded:
-        return "submit_no_crime"
-        
-    # Pick based on highest low-res activity
-    if len(expanded_segments) < 3:
-        best_lr = max(unexpanded, key=lambda s: s["low_res"]["motion_score"] + s["low_res"]["brightness_change"])
-        return f"expand {best_lr['id']}"
-
-    # Default random exploration    
-    import random
-    return f"expand {random.choice(unexpanded)['id']}"
-
+            summary.append(f"[{s['id']}] Frame {s['start_frame']} - LR motion: {s['low_res']['motion_score']:.2f}")
+    
+    prompt += "\nSegments:\n" + "\n".join(summary)
+    if history:
+        prompt += f"\nPrevious steps:\n" + "\n".join(history[-3:])
+    
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
+            max_tokens=60,
+        )
+        action = (response.choices[0].message.content or "").strip()
+        return action if action else f"expand segment_0"
+    except Exception as e:
+        print(f"[DEBUG] Model Request Failed: {e}", flush=True)
+        return f"expand segment_0"
+    
 # ---------------------------------------------------------------------------
 # Run one task
 # ---------------------------------------------------------------------------
 
 def run_task(task_id: int) -> dict:
     task_name = f"task_{task_id}"
-    log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME if USE_LLM else "heuristic")
+    log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
 
     try:
         obs = api_reset(task_id)
@@ -114,6 +127,7 @@ def run_task(task_id: int) -> dict:
         return {"score": 0.0}
 
     steps = 0
+    history = []
     rewards_list = []
     final_score = 0.0
     final_reward = None
@@ -122,8 +136,8 @@ def run_task(task_id: int) -> dict:
     while not done and steps < 200:
         steps += 1
         
-        # Decide action
-        action_str = heuristic_decide(obs)  # For baseline simplicity we run heuristic
+        # Decide action strictly using LLM
+        action_str = get_llm_action(obs, history)
         
         # Execute action
         try:
@@ -148,6 +162,7 @@ def run_task(task_id: int) -> dict:
             
             rewards_list.append(step_reward_float)
             
+            history.append(f"Step {steps}: {action_str} -> reward {step_reward_float:.2f}")
             log_step(step=steps, action=action_str, reward=step_reward_float, done=done, error=None)
             
             if done:
@@ -169,6 +184,9 @@ def run_task(task_id: int) -> dict:
 
 
 def main():
+    if not HF_TOKEN:
+        print("[DEBUG] WARNING: Empty HF_TOKEN. Script might fail calling HF router.", flush=True)
+        
     for task_id in [1, 2, 3]:
         run_task(task_id)
 

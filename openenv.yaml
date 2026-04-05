@@ -1,10 +1,6 @@
 name: falcon-cctv-crime-localization
 version: "1.0"
-description: >
-  FALCON (Frame-Aware Localization of Crime via Observation-budget Networks).
-  An OpenEnv environment for intelligent CCTV crime frame localization.
-  Uses
-  budget-constrained sequential sampling principle applied to temporal video segments.
+description: "FALCON: Intelligent CCTV Crime Frame Localization"
 
 author: Dhavala Kartikeya Somayaji
 hackathon: Meta PyTorch OpenEnv Hackathon — Round 1

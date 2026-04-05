@@ -12,14 +12,19 @@ from typing import List, Optional
 
 import requests
 
-BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 HF_TOKEN = os.getenv("HF_TOKEN", "")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+# LLM Router URL
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+
+# Environment Server URL
+ENV_BASE_URL = os.getenv("FALCON_ENV_URL", "http://localhost:8000")
 BENCHMARK = "falcon_cctv"
 
 try:
     from openai import OpenAI
-    client = OpenAI(api_key=HF_TOKEN, base_url=BASE_URL)
+    # The client connects to the Hugging Face Router
+    client = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
     USE_LLM = bool(HF_TOKEN)
 except ImportError:
     USE_LLM = False
@@ -46,13 +51,13 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
 # ---------------------------------------------------------------------------
 
 def api_reset(task_id: int) -> dict:
-    url = f"{BASE_URL}/reset?task_id={task_id}"
+    url = f"{ENV_BASE_URL}/reset?task_id={task_id}"
     resp = requests.post(url, headers={"accept": "application/json"})
     resp.raise_for_status()
     return resp.json()
 
 def api_step(action_str: str) -> dict:
-    url = f"{BASE_URL}/step"
+    url = f"{ENV_BASE_URL}/step"
     payload = {"raw": action_str}
     resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
     return resp.json()

@@ -12,10 +12,10 @@ from typing import List, Optional
 
 import requests
 
-API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN") or ""
+API_KEY = os.environ.get("API_KEY", "")
 # LLM Router URL
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+API_BASE_URL = os.environ.get("API_BASE_URL", "")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini") # Fallback to a common testing model if missing
 
 # Environment Server URL
 ENV_BASE_URL = os.getenv("FALCON_ENV_URL", "http://localhost:8000")
@@ -23,10 +23,13 @@ BENCHMARK = "falcon_cctv"
 
 try:
     from openai import OpenAI
-    # The client connects to the Hugging Face Router or LiteLLM proxy
-    client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
-    USE_LLM = bool(API_KEY)
-except ImportError:
+    # The client connects strictly to the LiteLLM proxy
+    client = OpenAI(
+        api_key=os.environ["API_KEY"], 
+        base_url=os.environ["API_BASE_URL"]
+    )
+    USE_LLM = True
+except Exception:
     USE_LLM = False
 
 # ---------------------------------------------------------------------------

@@ -184,8 +184,8 @@ def run_task(task_id: int) -> dict:
 
 
 def main():
-    if not HF_TOKEN:
-        print("[DEBUG] WARNING: Empty HF_TOKEN. Script might fail calling HF router.", flush=True)
+    if not API_KEY:
+        print("[DEBUG] WARNING: Empty API_KEY. Script might fail calling HF router or proxy.", flush=True)
         
     for task_id in [1, 2, 3]:
         run_task(task_id)

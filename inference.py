@@ -18,7 +18,7 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini") # Fallback to a common testing model if missing
 
 # Environment Server URL
-ENV_BASE_URL = os.getenv("FALCON_ENV_URL", "http://localhost:8000")
+ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "http://localhost:7860")
 BENCHMARK = "falcon_cctv"
 
 try:

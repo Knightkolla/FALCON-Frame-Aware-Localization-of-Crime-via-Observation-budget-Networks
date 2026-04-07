@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM public.ecr.aws/docker/library/python:3.11-slim
 
 LABEL maintainer="Dhavala Kartikeya Somayaji"
 LABEL description="FALCON: Frame-Aware Localization of Crime via Observation-budget Networks"

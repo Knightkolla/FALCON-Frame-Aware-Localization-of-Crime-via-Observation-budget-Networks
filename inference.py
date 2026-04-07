@@ -12,7 +12,7 @@ from typing import List, Optional
 
 import requests
 
-HF_TOKEN = os.getenv("HF_TOKEN", os.getenv("OPENAI_API_KEY", ""))
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY") or ""
 # LLM Router URL
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
@@ -23,9 +23,9 @@ BENCHMARK = "falcon_cctv"
 
 try:
     from openai import OpenAI
-    # The client connects to the Hugging Face Router
-    client = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
-    USE_LLM = bool(HF_TOKEN)
+    # The client connects to the Hugging Face Router or LiteLLM proxy
+    client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+    USE_LLM = bool(API_KEY)
 except ImportError:
     USE_LLM = False
 

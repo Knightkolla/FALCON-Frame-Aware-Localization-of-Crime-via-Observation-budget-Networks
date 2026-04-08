@@ -64,7 +64,7 @@ def compute_reward(
     else:
         efficiency_bonus = 0.0
 
-    final_score = min(1.0, round(base_score + efficiency_bonus, 4))
+    final_score = min(0.99, max(0.01, round(base_score + efficiency_bonus, 4)))
 
     # Human-readable explanation
     seconds_off = distance / FPS
@@ -101,7 +101,7 @@ def compute_no_crime_reward(budget_used: int, budget_total: int, crime_actually_
     """
     if crime_actually_present:
         return Reward(
-            score=0.0,
+            score=0.01,
             submitted_frame=None,
             ground_truth_frame=None,
             frame_distance=None,
@@ -111,7 +111,7 @@ def compute_no_crime_reward(budget_used: int, budget_total: int, crime_actually_
     else:
         # Correct no-crime decision (not used in current tasks but future-proof)
         return Reward(
-            score=1.0,
+            score=0.99,
             submitted_frame=None,
             ground_truth_frame=None,
             frame_distance=None,

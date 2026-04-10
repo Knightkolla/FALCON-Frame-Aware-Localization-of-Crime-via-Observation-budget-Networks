@@ -126,13 +126,13 @@ def run_task(task_id: int) -> dict:
     try:
         obs = api_reset(task_id)
     except Exception as e:
-        log_end(success=False, steps=0, score=0.0, rewards=[])
-        return {"score": 0.0}
+        log_end(success=False, steps=0, score=0.01, rewards=[])
+        return {"score": 0.01}
 
     steps = 0
     history = []
     rewards_list = []
-    final_score = 0.0
+    final_score = 0.01
     final_reward = None
     done = False
     
@@ -147,7 +147,7 @@ def run_task(task_id: int) -> dict:
             result = api_step(action_str)
             
             if "detail" in result: # HTTP Error handling
-                log_step(step=steps, action=action_str, reward=0.0, done=False, error=str(result["detail"]))
+                log_step(step=steps, action=action_str, reward=0.01, done=False, error=str(result["detail"]))
                 break
                 
             obs = result["observation"]
@@ -156,7 +156,7 @@ def run_task(task_id: int) -> dict:
             done = result["done"]
             
             # Step reward formatting
-            step_reward_float = 0.0
+            step_reward_float = 0.01
             if reward_obj and "score" in reward_obj:
                 step_reward_float = float(reward_obj["score"])
                 final_score = step_reward_float
@@ -171,7 +171,7 @@ def run_task(task_id: int) -> dict:
             if done:
                 break
         except Exception as e:
-            log_step(step=steps, action=action_str, reward=0.0, done=True, error=str(e))
+            log_step(step=steps, action=action_str, reward=0.01, done=True, error=str(e))
             break
             
         time.sleep(0.05)

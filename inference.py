@@ -176,6 +176,7 @@ def run_task(task_id: int) -> dict:
             
         time.sleep(0.05)
 
+    final_score = max(0.001, min(0.999, final_score))  # strictly in (0, 1) per OpenEnv spec
     success = (final_score >= 0.80)
     log_end(success=success, steps=steps, score=final_score, rewards=rewards_list)
 

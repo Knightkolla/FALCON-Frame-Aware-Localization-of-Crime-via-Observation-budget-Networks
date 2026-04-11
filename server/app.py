@@ -356,12 +356,12 @@ def step(action: Action):
         if _episode["is_clean"]:
             # Agent submitted a frame but this is a clean video — wrong
             reward = Reward(
-                score=0.0,
+                score=0.01,
                 submitted_frame=frame_num,
                 ground_truth_frame=None,
                 frame_distance=None,
                 efficiency_bonus=0.0,
-                explanation="Agent submitted a frame but this video has no crime. Score: 0.0.",
+                explanation="Agent submitted a frame but this video has no crime. Score: 0.01.",
             )
         else:
             reward = compute_reward(

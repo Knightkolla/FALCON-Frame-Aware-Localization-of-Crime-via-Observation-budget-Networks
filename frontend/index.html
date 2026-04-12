@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FALCON — Frame Localization System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-page: #080808;
+            --bg-panel: #0f0f0f;
+            --bg-card: #141414;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --accent: #c8450e;
+            --border: rgba(255, 255, 255, 0.07);
+            --border-divider: rgba(255, 255, 255, 0.1);
+            --hover: rgba(255, 255, 255, 0.04);
+        }
+
+        html {
+            scroll-behavior: smooth;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Space Mono', monospace;
+            background: var(--bg-page);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: hidden;
+        }
+
+        /* ── Animations ── */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateY(-16px);
+            }
+        }
+
+        @keyframes segmentPop {
+            0% {
+                transform: scaleY(1);
+            }
+
+            40% {
+                transform: scaleY(1.25);
+            }
+
+            100% {
+                transform: scaleY(1);
+            }
+        }
+
+        @keyframes glowPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 2px rgba(200, 69, 14, 0.6);
+            }
+
+            50% {
+                box-shadow: 0 0 0 4px rgba(200, 69, 14, 1);
+            }
+        }
+
+        @keyframes targetBlink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.45;
+            }
+        }
+
+        @keyframes resultReveal {
+            from {
+                opacity: 0;
+                transform: translateY(32px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── Side rails ── */
+        .rail {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            background: var(--bg-panel);
+            z-index: 200;
+        }
+
+        .rail.left {
+            left: 0;
+        }
+
+        .rail.right {
+            right: 0;
+        }
+
+        /* ── Page wrapper ── */
+        .page {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ── Full-screen centred screens ── */
+        .screen {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 32px;
+        }
+
+        .screen-inner {
+            width: 100%;
+            max-width: 860px;
+        }
+
+        /* ── Section label ── */
+        .step-label {
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        /* ── Headlines ── */
+        .headline {
+            font-size: 52px;
+            font-weight: 700;
+            line-height: 1.05;
+            color: var(--text-primary);
+            margin-bottom: 14px;
+        }
+
+        .body-text {
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--text-secondary);
+        }
+
+        /* ── Divider ── */
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border-divider);
+            margin: 28px 0;
+        }
+
+        /* ── Upload card ── */
+        .upload-card {
+            background: var(--bg-card);
+            border: 0.5px solid var(--border);
+            border-radius: 12px;
+            padding: 0;
+            cursor: pointer;
+            transition: background 0.25s, border-color 0.25s, transform 0.25s;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 140px;
+            text-align: center;
+        }
+
+        .upload-card:hover {
+            background: var(--hover);
+            border-color: rgba(255, 255, 255, 0.14);
+            transform: translateY(-2px);
+        }
+
+        .upload-card.uploaded {
+            border-color: var(--accent);
+        }
+
+        .upload-card input[type="file"] {
+            display: none;
+        }
+
+        .card-tag {
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .card-hint {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .card-filename {
+            font-size: 13px;
+            color: var(--text-primary);
+            padding: 0 16px;
+            word-break: break-all;
+        }
+
+        /* ── Query tabs ── */
+        .tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .tab-btn {
+            background: var(--bg-card);
+            border: 0.5px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, transform 0.2s;
+        }
+
+        .tab-btn:hover {
+            background: var(--hover);
+            transform: translateY(-1px);
+        }
+
+        .tab-btn.active {
+            background: var(--accent);
+            color: var(--bg-page);
+            border-color: var(--accent);
+        }
+
+        .text-input {
+            width: 100%;
+            background: var(--bg-card);
+            border: 0.5px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .text-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(200, 69, 14, 0.15);
+        }
+
+        .text-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* ── Process button ── */
+        .process-btn {
+            width: 100%;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            padding: 20px 16px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--bg-page);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .process-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0);
+            transition: background 0.2s;
+        }
+
+        .process-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(200, 69, 14, 0.35);
+        }
+
+        .process-btn:active {
+            transform: translateY(0);
+        }
+
+        .process-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* ── Two-column form layout ── */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        /* ── Viz screen — scrollable ── */
+        .viz-screen {
+            min-height: 100vh;
+            max-height: 100vh;
+            padding: 0 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .viz-inner {
+            width: 100%;
+            max-width: 860px;
+        }
+
+        /* ── Method block ── */
+        .method-block {
+            margin-bottom: 24px;
+        }
+
+        .method-block:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .method-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .method-name {
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .method-num {
+            font-size: 10px;
+            opacity: 0.6;
+        }
+
+        .method-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-pct {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* ── Timeline card ── */
+        .timeline-card {
+            background: var(--bg-card);
+            border: 0.5px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px 14px;
+        }
+
+        .timeline-bar {
+            display: flex;
+            gap: 3px;
+            height: 44px;
+            margin-bottom: 10px;
+        }
+
+        .seg {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 0.5px solid var(--border);
+            border-radius: 3px;
+            position: relative;
+            transition: background 0.25s, border-color 0.25s;
+        }
+
+        .seg.visited {
+            background: var(--accent);
+            border-color: var(--accent);
+            animation: segmentPop 0.35s ease;
+        }
+
+        .seg.current {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .seg.target-mark {
+            border: 1.5px solid rgba(255, 255, 255, 0.5);
+            animation: targetBlink 2s ease infinite;
+        }
+
+        .seg.found {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+            animation: glowPulse 0.5s ease 2 !important;
+        }
+
+        .timeline-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            min-height: 17px;
+            transition: color 0.3s;
+        }
+
+        .timeline-status.done {
+            color: var(--accent);
+        }
+
+        /* ── Timestamp badge ── */
+        .timestamp-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(200, 69, 14, 0.12);
+            border: 0.5px solid rgba(200, 69, 14, 0.4);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 11px;
+            color: var(--accent);
+            margin-top: 8px;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .timestamp-badge.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .timestamp-badge .ts-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        /* ── Results ── */
+        .results-wrap {
+            margin-top: 8px;
+            animation: resultReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .results-label {
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .result-card {
+            background: var(--bg-card);
+            border: 0.5px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .result-tag {
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            color: var(--accent);
+            margin-bottom: 18px;
+        }
+
+        .result-stat {
+            margin-bottom: 16px;
+        }
+
+        .result-stat:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-val {
+            font-size: 40px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .stat-lbl {
+            font-size: 11px;
+            color: var(--text-secondary);
+            letter-spacing: 0.06em;
+        }
+
+        .speedup-card {
+            background: var(--bg-card);
+            border: 0.5px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+        }
+
+        .speedup-lbl {
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .speedup-val {
+            font-size: 72px;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .speedup-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* ── Utilities ── */
+        .hidden {
+            display: none !important;
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .fade-out {
+            animation: fadeOut 0.35s ease forwards;
+            pointer-events: none;
+        }
+
+        /* ── Footer ── */
+        footer {
+            text-align: center;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            padding: 28px 0 36px;
+            border-top: 1px solid var(--border-divider);
+            margin-top: auto;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            .headline {
+                font-size: 36px;
+            }
+
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .speedup-val {
+                font-size: 56px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="rail left"></div>
+    <div class="rail right"></div>
+
+    <div class="page">
+
+        <!-- ════════ STEP 01 — UPLOAD VIDEO ════════ -->
+        <section class="screen" id="s1">
+            <div class="screen-inner fade-in">
+                <div class="step-label">STEP 01</div>
+                <h1 class="headline">Upload Video</h1>
+                <p class="body-text">Select a video file to analyze. FALCON will intelligently search through segments
+                    using reinforcement learning.</p>
+                <hr class="divider">
+
+                <div class="upload-card" id="videoCard" onclick="document.getElementById('videoInput').click()">
+                    <input type="file" id="videoInput" accept="video/*">
+                    <div id="videoHint">
+                        <p class="card-tag">01 — VIDEO FILE</p>
+                        <p class="card-hint">Click to select video</p>
+                    </div>
+                    <div id="videoName" class="hidden">
+                        <p class="card-tag">01 — VIDEO FILE</p>
+                        <p class="card-filename" id="videoNameText"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ════════ STEP 02 — DEFINE TARGET ════════ -->
+        <section class="screen hidden" id="s2">
+            <div class="screen-inner fade-in">
+                <div class="step-label">STEP 02</div>
+                <h1 class="headline">Define Target</h1>
+                <p class="body-text">Describe the frame you're looking for using text, or upload a reference image.</p>
+                <hr class="divider">
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="text" onclick="switchTab('text')">TEXT QUERY</button>
+                    <button class="tab-btn" data-tab="image" onclick="switchTab('image')">IMAGE QUERY</button>
+                </div>
+
+                <div id="textTab">
+                    <input type="text" id="textQuery" class="text-input"
+                        placeholder="e.g., person walking, car chase scene...">
+                </div>
+
+                <div id="imageTab" class="hidden">
+                    <div class="upload-card" id="imgCard" onclick="document.getElementById('imageInput').click()">
+                        <input type="file" id="imageInput" accept="image/*">
+                        <div id="imgHint">
+                            <p class="card-tag">02 — TARGET FRAME</p>
+                            <p class="card-hint">Click to select image</p>
+                        </div>
+                        <div id="imgName" class="hidden">
+                            <p class="card-tag">02 — TARGET FRAME</p>
+                            <p class="card-filename" id="imgNameText"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="process-btn" id="processBtn" onclick="startProcessing()">
+                    START PROCESSING
+                </button>
+            </div>
+        </section>
+
+        <!-- ════════ STEP 03 — VISUALIZATION ════════ -->
+        <section class="viz-screen hidden" id="s3">
+            <div class="viz-inner">
+
+                <div class="step-label fade-in" style="margin-bottom:6px;">PROCESSING</div>
+                <h2 class="headline fade-in" style="margin-bottom:20px;">Analyzing Video</h2>
+
+                <!-- FALCON -->
+                <div class="method-block fade-in" id="falconBlock">
+                    <div class="method-header">
+                        <div class="method-name">
+                            <span class="method-num">01</span>
+                            FALCON — RL-BASED SEARCH
+                        </div>
+                        <div class="method-meta">
+                            <span class="meta-pct" id="falconPct">0%</span>
+                            <span>SEGMENTS VISITED</span>
+                        </div>
+                    </div>
+                    <div class="timeline-card">
+                        <div class="timeline-bar" id="falconBar"></div>
+                        <div class="timeline-status" id="falconStatus">Initializing RL agent...</div>
+                        <div class="timestamp-badge" id="falconTS">
+                            <span class="ts-dot"></span>
+                            FRAME FOUND AT <span id="falconTSVal">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LINEAR -->
+                <div class="method-block fade-in" style="animation-delay:0.1s;" id="linearBlock">
+                    <div class="method-header">
+                        <div class="method-name">
+                            <span class="method-num">02</span>
+                            LINEAR SEARCH — BASELINE
+                        </div>
+                        <div class="method-meta">
+                            <span class="meta-pct" id="linearPct">0%</span>
+                            <span>FRAMES PROCESSED</span>
+                        </div>
+                    </div>
+                    <div class="timeline-card">
+                        <div class="timeline-bar" id="linearBar"></div>
+                        <div class="timeline-status" id="linearStatus">Initializing linear scan...</div>
+                        <div class="timestamp-badge" id="linearTS">
+                            <span class="ts-dot"></span>
+                            FRAME FOUND AT <span id="linearTSVal">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RESULTS (revealed after both finish) -->
+                <div class="results-wrap hidden" id="resultsWrap">
+                    <hr class="divider">
+                    <div class="results-label">RESULTS</div>
+
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <div class="result-tag">FALCON</div>
+                            <div class="result-stat">
+                                <div class="stat-val" id="rFalconTime">—</div>
+                                <div class="stat-lbl">TIME ELAPSED</div>
+                            </div>
+                            <div class="result-stat">
+                                <div class="stat-val" id="rFalconVisited">—</div>
+                                <div class="stat-lbl">SEGMENTS VISITED</div>
+                            </div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-tag">LINEAR</div>
+                            <div class="result-stat">
+                                <div class="stat-val" id="rLinearTime">—</div>
+                                <div class="stat-lbl">TIME ELAPSED</div>
+                            </div>
+                            <div class="result-stat">
+                                <div class="stat-val" id="rLinearVisited">—</div>
+                                <div class="stat-lbl">FRAMES PROCESSED</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="speedup-card" style="margin-top:12px;">
+                        <div class="speedup-lbl">SPEEDUP</div>
+                        <span class="speedup-val" id="speedupVal">—</span>
+                        <div class="speedup-sub">FASTER THAN LINEAR SEARCH</div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <footer>FALCON v1.0 — FRAME LOCALIZATION SYSTEM</footer>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

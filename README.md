@@ -1,4 +1,18 @@
+---
+title: FALCON - Intelligent CCTV Crime Frame Localization
+emoji: 🦅
+colorFrom: indigo
+colorTo: pink
+sdk: docker
+pinned: false
+tags:
+- openenv
+- reinforcement-learning
+- surveillance
+---
+
 <div align="center">
+
 
 <img src="FALCON.png" alt="FALCON Architecture" width="820"/>
 

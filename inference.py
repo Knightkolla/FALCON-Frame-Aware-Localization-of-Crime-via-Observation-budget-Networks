@@ -12,10 +12,11 @@ from typing import List, Optional
 
 import requests
 
-API_KEY = os.environ.get("API_KEY", "")
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
+API_KEY = os.environ.get("API_KEY", HF_TOKEN) # Support both, prioritizing HF_TOKEN
 # LLM Router URL
-API_BASE_URL = os.environ.get("API_BASE_URL", "")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini") # Fallback to a common testing model if missing
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct") 
 
 # Environment Server URL
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "http://localhost:7860")
@@ -25,8 +26,8 @@ try:
     from openai import OpenAI
     # The client connects strictly to the LiteLLM proxy
     client = OpenAI(
-        api_key=os.environ["API_KEY"], 
-        base_url=os.environ["API_BASE_URL"]
+        api_key=API_KEY, 
+        base_url=API_BASE_URL
     )
     USE_LLM = True
 except Exception:

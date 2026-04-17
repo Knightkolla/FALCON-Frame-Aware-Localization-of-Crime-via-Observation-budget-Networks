@@ -296,6 +296,7 @@ More importantly, it does so under a **computational budget constraint** — a r
 - **Budget-aware sequential decision making** via RL (PPO)
 
 ...into a single end-to-end trainable system is the core contribution of FALCON. The agent does not just classify — it *navigates*, *propagates*, and *localizes*.
+Credits:*Sequential Attention-based Sampling for Histopathological Analysis*
 
 ---
 
